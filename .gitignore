@@ -1,0 +1,77 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+*.whl
+
+# Virtual environments
+venv/
+ENV/
+env/
+.env/
+.venv/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Testing
+.coverage
+.tox/
+.nox/
+pytest_cache/
+*.cover
+*.py,cover
+htmlcov/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IDE / Editor
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
+
+# Logs and databases
+*.log
+*.sql
+*.sqlite3
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Archives / backups
+*.zip
+*.tar.gz
+*.tar.bz2
+*.rar
+*.7z
+
+# Secrets (never commit API keys, tokens, or .env)
+*.env
+*.key
+*.pem

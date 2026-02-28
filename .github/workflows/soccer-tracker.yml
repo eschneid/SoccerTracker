@@ -1,13 +1,6 @@
-name: Soccer Tracker Automation
+name: Soccer Tracker - Manual Dispatch
 
 on:
-  schedule:
-    # Daily sync at 6 AM EST (11 AM UTC)
-    - cron: '0 11 * * *'
-    
-    # Game day notifications at 7 AM EST (12 PM UTC)
-    - cron: '0 12 * * *'
-  
   # Allow manual triggers
   workflow_dispatch:
     inputs:
@@ -26,7 +19,7 @@ jobs:
   sync-matches:
     name: Sync Match Data
     runs-on: ubuntu-latest
-    if: github.event.schedule == '0 11 * * *' || github.event.inputs.action == 'sync' || github.event.inputs.action == 'both'
+    if: github.event.inputs.action == 'sync' || github.event.inputs.action == 'both'
     
     steps:
       - name: Checkout repository
@@ -57,7 +50,7 @@ jobs:
   send-notifications:
     name: Send Game Day Notifications
     runs-on: ubuntu-latest
-    if: github.event.schedule == '0 12 * * *' || github.event.inputs.action == 'notify' || github.event.inputs.action == 'both'
+    if: github.event.inputs.action == 'notify' || github.event.inputs.action == 'both'
     
     steps:
       - name: Checkout repository

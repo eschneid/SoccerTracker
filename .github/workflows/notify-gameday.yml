@@ -1,0 +1,47 @@
+name: Send Game Day Notifications
+
+on:
+  schedule:
+    # Game day notifications at 7 AM EST (12 PM UTC)
+    - cron: '0 12 * * *'
+  
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  send-notifications:
+    name: Send Game Day Notifications
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Create .env file
+        run: |
+          cat > .env << EOF
+          NOTION_TOKEN=${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID=${{ secrets.NOTION_DATABASE_ID }}
+          SMTP_SERVER=${{ secrets.SMTP_SERVER }}
+          SMTP_PORT=${{ secrets.SMTP_PORT }}
+          EMAIL_FROM=${{ secrets.EMAIL_FROM }}
+          EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}
+          SMS_RECIPIENTS=${{ secrets.SMS_RECIPIENTS }}
+          SMS_SEND_MODE=${{ secrets.SMS_SEND_MODE }}
+          MY_FAVORITE_TEAM=${{ secrets.MY_FAVORITE_TEAM }}
+          WIFE_FAVORITE_TEAM=${{ secrets.WIFE_FAVORITE_TEAM }}
+          EOF
+      
+      - name: Send game day notifications
+        run: python notify_gameday.py

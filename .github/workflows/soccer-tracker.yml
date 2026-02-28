@@ -1,0 +1,129 @@
+name: Soccer Tracker Automation
+
+on:
+  schedule:
+    # Daily sync at 6 AM EST (11 AM UTC)
+    - cron: '0 11 * * *'
+    
+    # Game day notifications at 8 AM EST (1 PM UTC)
+    - cron: '0 13 * * *'
+  
+  # Allow manual triggers
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to run'
+        required: true
+        default: 'sync'
+        type: choice
+        options:
+          - sync
+          - notify
+          - both
+          - test
+
+jobs:
+  sync-matches:
+    name: Sync Match Data
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 11 * * *' || github.event.inputs.action == 'sync' || github.event.inputs.action == 'both'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Create .env file
+        run: |
+          cat > .env << EOF
+          NOTION_TOKEN=${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID=${{ secrets.NOTION_DATABASE_ID }}
+          FOOTBALLDATA_API_KEY=${{ secrets.FOOTBALLDATA_API_KEY }}
+          EOF
+      
+      - name: Run match sync
+        run: python sync_matches_footballdata.py
+  
+  send-notifications:
+    name: Send Game Day Notifications
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 13 * * *' || github.event.inputs.action == 'notify' || github.event.inputs.action == 'both'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Create .env file
+        run: |
+          cat > .env << EOF
+          NOTION_TOKEN=${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID=${{ secrets.NOTION_DATABASE_ID }}
+          SMTP_SERVER=${{ secrets.SMTP_SERVER }}
+          SMTP_PORT=${{ secrets.SMTP_PORT }}
+          EMAIL_FROM=${{ secrets.EMAIL_FROM }}
+          EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}
+          SMS_RECIPIENTS=${{ secrets.SMS_RECIPIENTS }}
+          SMS_SEND_MODE=${{ secrets.SMS_SEND_MODE }}
+          MY_FAVORITE_TEAM=${{ secrets.MY_FAVORITE_TEAM }}
+          WIFE_FAVORITE_TEAM=${{ secrets.WIFE_FAVORITE_TEAM }}
+          EOF
+      
+      - name: Send game day notifications
+        run: python notify_gameday.py
+  
+  test-run:
+    name: Test Run
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'test'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Create .env file
+        run: |
+          cat > .env << EOF
+          NOTION_TOKEN=${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID=${{ secrets.NOTION_DATABASE_ID }}
+          SMTP_SERVER=${{ secrets.SMTP_SERVER }}
+          SMTP_PORT=${{ secrets.SMTP_PORT }}
+          EMAIL_FROM=${{ secrets.EMAIL_FROM }}
+          EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}
+          SMS_RECIPIENTS=${{ secrets.SMS_RECIPIENTS }}
+          SMS_SEND_MODE=${{ secrets.SMS_SEND_MODE }}
+          EOF
+      
+      - name: Send test notification
+        run: python notify_gameday.py --test

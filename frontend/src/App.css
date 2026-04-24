@@ -1,0 +1,260 @@
+/* ---- Reset & base ---- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #0f1117;
+  --surface:     #1a1d27;
+  --surface2:    #22263a;
+  --border:      #2e3250;
+  --green:       #22c55e;
+  --text:        #f0f2f8;
+  --text-muted:  #8b91b0;
+  --radius:      12px;
+  --transition:  0.18s ease;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+}
+
+/* ---- Header ---- */
+.app-header {
+  background: linear-gradient(135deg, #0d1f0f 0%, #0f1117 60%, #0d1230 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 2rem 1.5rem 1.5rem;
+  text-align: center;
+}
+
+.header-content { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; }
+.header-icon    { font-size: 2.5rem; }
+.app-header h1  { font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; }
+.header-sub     { color: var(--text-muted); font-size: 0.9rem; }
+
+/* ---- Main layout ---- */
+.app-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+/* ---- Tab bar ---- */
+.tab-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.2rem;
+}
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.tab-btn:hover       { border-color: var(--green); color: var(--text); }
+.tab-btn.active      { background: var(--green); border-color: var(--green); color: #000; }
+
+/* ---- Team filter ---- */
+.team-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.team-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.team-btn:hover  { border-color: var(--green); color: var(--text); }
+.team-btn.active { border-color: var(--green); color: var(--green); background: rgba(34,197,94,0.08); }
+
+/* ---- Badge ---- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.3rem;
+  height: 1.3rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: rgba(255,255,255,0.15);
+  color: inherit;
+}
+.tab-btn.active .badge { background: rgba(0,0,0,0.2); }
+
+/* ---- Match grid ---- */
+.match-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+/* ---- Match card ---- */
+.match-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  transition: border-color var(--transition), transform var(--transition);
+}
+.match-card:hover {
+  border-color: rgba(34,197,94,0.4);
+  transform: translateY(-2px);
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.team-abbr {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.status-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  color: #000;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.card-matchup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.team-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.vs {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.opponent-name {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* ---- Score block ---- */
+.card-score {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.5rem 0.8rem;
+  background: var(--surface2);
+  border-radius: 8px;
+  border-left: 3px solid transparent;
+}
+
+.score-text {
+  font-size: 1.4rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
+}
+
+.result-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  color: #000;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ---- Detail rows ---- */
+.card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.8rem;
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+}
+
+.detail-icon { font-size: 0.9rem; flex-shrink: 0; }
+.detail-val  { color: var(--text); }
+.detail-sub  { color: var(--text-muted); font-size: 0.75rem; }
+
+/* ---- State messages ---- */
+.state-msg {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+}
+.state-msg.error { color: #fca5a5; }
+.state-msg .hint { font-size: 0.82rem; color: var(--text-muted); }
+
+/* ---- Spinner ---- */
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- Responsive ---- */
+@media (max-width: 600px) {
+  .app-header h1  { font-size: 1.5rem; }
+  .team-filter    { gap: 0.4rem; }
+  .team-btn       { font-size: 0.75rem; padding: 0.35rem 0.8rem; }
+  .match-grid     { grid-template-columns: 1fr; }
+}

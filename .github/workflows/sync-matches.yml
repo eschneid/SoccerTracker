@@ -2,7 +2,7 @@ name: Sync Match Data
 
 on:
   schedule:
-    # Daily sync at 6 AM EST (11 AM UTC)
+    # Daily sync at 7 AM EDT (11 AM UTC)
     - cron: '0 11 * * *'
   
   # Allow manual trigger

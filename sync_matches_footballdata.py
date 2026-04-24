@@ -68,6 +68,18 @@ class FootballDataSync:
             }
         }
         
+        # ESPN API setup (no key required)
+        self.espn_base_url = "https://site.api.espn.com/apis/site/v2/sports/soccer"
+
+        # NWSL teams tracked via ESPN
+        self.nwsl_teams = {
+            "Racing Louisville FC": {
+                "espn_id": 20905,
+                "league": "NWSL",
+                "notion_season": str(datetime.now().year)
+            }
+        }
+
         # Competition mapping
         self.competition_map = {
             "PL": "Premier League",
@@ -112,6 +124,122 @@ class FootballDataSync:
             print(f"   ❌ Request error: {e}")
             return None
     
+    def fetch_espn_team_schedule(self, team_name):
+        """Fetch NWSL schedule for a team from the ESPN API, returning raw events."""
+        team_config = self.nwsl_teams[team_name]
+        espn_id = team_config["espn_id"]
+        season = datetime.now().year
+        url = f"{self.espn_base_url}/usa.nwsl/teams/{espn_id}/schedule?season={season}"
+
+        print(f"\n🔍 Fetching ESPN schedule for {team_name} (season {season})...")
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            events = data.get("events", [])
+            print(f"   ✅ Found {len(events)} fixtures")
+            return events
+        except Exception as e:
+            print(f"   ❌ ESPN request error: {e}")
+            return []
+
+    def parse_espn_fixture(self, event, team_name):
+        """Parse an ESPN event into Notion-friendly format."""
+        team_config = self.nwsl_teams[team_name]
+        espn_id = team_config["espn_id"]
+
+        competition = event.get("competitions", [{}])[0]
+        competitors = competition.get("competitors", [])
+
+        # Identify home/away and opponent
+        our_team = next((c for c in competitors if str(c.get("id")) == str(espn_id)), None)
+        opponent_entry = next((c for c in competitors if str(c.get("id")) != str(espn_id)), None)
+        is_home = our_team.get("homeAway") == "home" if our_team else True
+        opponent_name = opponent_entry.get("team", {}).get("displayName", "Unknown") if opponent_entry else "Unknown"
+
+        # Scores
+        our_score = our_team.get("score") if our_team else None
+        opp_score = opponent_entry.get("score") if opponent_entry else None
+
+        # Status
+        status_state = competition.get("status", {}).get("type", {}).get("state", "pre")
+        status_name = competition.get("status", {}).get("type", {}).get("name", "STATUS_SCHEDULED")
+        espn_status_map = {
+            "STATUS_SCHEDULED": "Scheduled",
+            "STATUS_IN_PROGRESS": "Live",
+            "STATUS_FINAL": "Completed",
+            "STATUS_POSTPONED": "Postponed",
+            "STATUS_CANCELED": "Cancelled",
+            "STATUS_SUSPENDED": "Postponed",
+        }
+        notion_status = espn_status_map.get(status_name, "Scheduled")
+
+        # Result
+        result = "Upcoming"
+        if status_state == "post" and our_score is not None and opp_score is not None:
+            our_score_int = int(our_score)
+            opp_score_int = int(opp_score)
+            if our_score_int > opp_score_int:
+                result = "Win"
+            elif our_score_int < opp_score_int:
+                result = "Loss"
+            else:
+                result = "Draw"
+
+        # Score string
+        score = ""
+        if our_score is not None and opp_score is not None:
+            score = f"{our_score}-{opp_score}"
+
+        # Broadcast — prefer TV over streaming
+        broadcasts = competition.get("broadcasts", [])
+        broadcast = None
+        for b in sorted(broadcasts, key=lambda x: (x.get("type") != "TV")):
+            name = b.get("media", {}).get("shortName") or b.get("names", [None])[0]
+            if name:
+                broadcast = name
+                break
+
+        # Venue
+        venue_data = competition.get("venue", {})
+        venue = venue_data.get("fullName", "TBD")
+
+        # Date
+        match_date = event.get("date", "")
+
+        goals_for = int(our_score) if our_score is not None else None
+        goals_against = int(opp_score) if opp_score is not None else None
+
+        return {
+            "team": team_name,
+            "opponent": opponent_name,
+            "match_date": match_date,
+            "league": team_config["league"],
+            "competition": "NWSL",
+            "home_away": "Home" if is_home else "Away",
+            "result": result,
+            "score": score,
+            "goals_for": goals_for,
+            "goals_against": goals_against,
+            "status": notion_status,
+            "venue": venue,
+            "season": team_config["notion_season"],
+            "match_id": f"espn-{event.get('id', '')}",
+            "broadcast": broadcast,
+        }
+
+    def sync_nwsl_team(self, team_name):
+        """Sync all fixtures for an NWSL team via ESPN."""
+        events = self.fetch_espn_team_schedule(team_name)
+        for event in events:
+            match_data = self.parse_espn_fixture(event, team_name)
+            existing_page = self.find_existing_match(match_data["match_id"])
+            if existing_page:
+                self.update_notion_page(existing_page["id"], match_data)
+            else:
+                self.create_notion_page(match_data)
+            time.sleep(0.5)
+
     def fetch_team_fixtures(self, team_name, days_back=7, days_forward=30):
         """
         Fetch fixtures for a specific team.
@@ -246,9 +374,10 @@ class FootballDataSync:
             "status": notion_status,
             "venue": venue,
             "season": team_config["notion_season"],
-            "match_id": str(fixture.get('id', ''))
+            "match_id": str(fixture.get('id', '')),
+            "broadcast": None,
         }
-        
+
         return parsed
     
     def find_existing_match(self, match_id):
@@ -301,13 +430,16 @@ class FootballDataSync:
             # Add score data if available
             if match_data["score"]:
                 properties["Score"] = {"rich_text": [{"text": {"content": match_data["score"]}}]}
-            
+
             if match_data["goals_for"] is not None:
                 properties["Goals For"] = {"number": match_data["goals_for"]}
-            
+
             if match_data["goals_against"] is not None:
                 properties["Goals Against"] = {"number": match_data["goals_against"]}
-            
+
+            if match_data.get("broadcast"):
+                properties["Broadcast"] = {"select": {"name": match_data["broadcast"]}}
+
             self.notion.pages.create(
                 parent={"database_id": self.database_id},
                 properties=properties
@@ -331,13 +463,16 @@ class FootballDataSync:
             # Update score data if available
             if match_data["score"]:
                 properties["Score"] = {"rich_text": [{"text": {"content": match_data["score"]}}]}
-            
+
             if match_data["goals_for"] is not None:
                 properties["Goals For"] = {"number": match_data["goals_for"]}
-            
+
             if match_data["goals_against"] is not None:
                 properties["Goals Against"] = {"number": match_data["goals_against"]}
-            
+
+            if match_data.get("broadcast"):
+                properties["Broadcast"] = {"select": {"name": match_data["broadcast"]}}
+
             self.notion.pages.update(
                 page_id=page_id,
                 properties=properties
@@ -373,8 +508,12 @@ class FootballDataSync:
         
         for team_name in self.teams.keys():
             self.sync_team(team_name)
-            time.sleep(2)  # Delay between teams
-        
+            time.sleep(2)
+
+        for team_name in self.nwsl_teams.keys():
+            self.sync_nwsl_team(team_name)
+            time.sleep(2)
+
         print("\n" + "=" * 60)
         print("✅ Sync Complete!")
         print("=" * 60)

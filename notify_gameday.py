@@ -111,7 +111,8 @@ class GameDayNotifier:
                     "league": props["League"]["select"]["name"] if props.get("League") and props["League"]["select"] else "",
                     "competition": props["Competition"]["select"]["name"] if props["Competition"]["select"] else "",
                     "home_away": props["Home/Away"]["select"]["name"] if props["Home/Away"]["select"] else "",
-                    "venue": props["Venue"]["rich_text"][0]["text"]["content"] if props["Venue"]["rich_text"] else ""
+                    "venue": props["Venue"]["rich_text"][0]["text"]["content"] if props["Venue"]["rich_text"] else "",
+                    "broadcast": props["Broadcast"]["select"]["name"] if props.get("Broadcast") and props["Broadcast"]["select"] else "",
                 }
                 matches.append(match)
             
@@ -164,10 +165,13 @@ class GameDayNotifier:
             
             if match['venue']:
                 message += f" • 📍 {match['venue']}"
-            
+
+            if match['broadcast']:
+                message += f"\n📺 {match['broadcast']}"
+
             if match['league']:
                 message += f"\n🏆 {match['league']}"
-            
+
             message += "\n\n"
         
         # Keep under 160 characters if possible, otherwise up to 300

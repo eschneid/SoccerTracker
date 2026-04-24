@@ -157,9 +157,19 @@ class FootballDataSync:
         is_home = our_team.get("homeAway") == "home" if our_team else True
         opponent_name = opponent_entry.get("team", {}).get("displayName", "Unknown") if opponent_entry else "Unknown"
 
-        # Scores
-        our_score = our_team.get("score") if our_team else None
-        opp_score = opponent_entry.get("score") if opponent_entry else None
+        # Scores — ESPN returns score as a dict {"value": 2, "displayValue": "2"} or plain string
+        def extract_score(competitor):
+            if competitor is None:
+                return None
+            s = competitor.get("score")
+            if s is None:
+                return None
+            if isinstance(s, dict):
+                return s.get("value")
+            return s
+
+        our_score = extract_score(our_team)
+        opp_score = extract_score(opponent_entry)
 
         # Status
         status_state = competition.get("status", {}).get("type", {}).get("state", "pre")

@@ -124,21 +124,35 @@ class FootballDataSync:
             print(f"   ❌ Request error: {e}")
             return None
     
-    def fetch_espn_team_schedule(self, team_name):
-        """Fetch NWSL schedule for a team from the ESPN API, returning raw events."""
-        team_config = self.nwsl_teams[team_name]
-        espn_id = team_config["espn_id"]
-        season = datetime.now().year
-        url = f"{self.espn_base_url}/usa.nwsl/teams/{espn_id}/schedule?season={season}"
+    def fetch_espn_team_schedule(self, team_name, days_back=30, days_forward=60):
+        """Fetch NWSL schedule for a team via the scoreboard endpoint filtered by team.
 
-        print(f"\n🔍 Fetching ESPN schedule for {team_name} (season {season})...")
+        The team schedule endpoint only returns completed games; the scoreboard
+        endpoint returns all games (past, live, upcoming) for a date range.
+        """
+        team_config = self.nwsl_teams[team_name]
+        espn_id = str(team_config["espn_id"])
+
+        date_from = (datetime.now() - timedelta(days=days_back)).strftime("%Y%m%d")
+        date_to = (datetime.now() + timedelta(days=days_forward)).strftime("%Y%m%d")
+        url = f"{self.espn_base_url}/usa.nwsl/scoreboard?dates={date_from}-{date_to}&limit=200"
+
+        print(f"\n🔍 Fetching ESPN scoreboard for {team_name} ({date_from}–{date_to})...")
         try:
             response = requests.get(url, timeout=10)
             response.raise_for_status()
             data = response.json()
-            events = data.get("events", [])
-            print(f"   ✅ Found {len(events)} fixtures")
-            return events
+            all_events = data.get("events", [])
+
+            # Filter to only events involving this team
+            team_events = []
+            for event in all_events:
+                competitors = event.get("competitions", [{}])[0].get("competitors", [])
+                if any(str(c.get("id")) == espn_id for c in competitors):
+                    team_events.append(event)
+
+            print(f"   ✅ Found {len(team_events)} fixtures")
+            return team_events
         except Exception as e:
             print(f"   ❌ ESPN request error: {e}")
             return []

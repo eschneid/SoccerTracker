@@ -71,12 +71,35 @@ class FootballDataSync:
         # ESPN API setup (no key required)
         self.espn_base_url = "https://site.api.espn.com/apis/site/v2/sports/soccer"
 
-        # NWSL teams tracked via ESPN
-        self.nwsl_teams = {
+        # Teams tracked via ESPN (NWSL, WSL, etc.)
+        self.espn_teams = {
             "Racing Louisville FC": {
                 "espn_id": 20905,
+                "league_slug": "usa.nwsl",
                 "league": "NWSL",
+                "competition": "NWSL",
                 "notion_season": str(datetime.now().year)
+            },
+            "Manchester United Women": {
+                "espn_id": 20061,
+                "league_slug": "eng.w.1",
+                "league": "WSL",
+                "competition": "WSL",
+                "notion_season": "2025/26"
+            },
+            "Manchester City Women": {
+                "espn_id": 19257,
+                "league_slug": "eng.w.1",
+                "league": "WSL",
+                "competition": "WSL",
+                "notion_season": "2025/26"
+            },
+            "Lyon Women": {
+                "espn_id": 19256,
+                "league_slug": "fra.w.1",
+                "league": "Division 1 Féminine",
+                "competition": "Division 1 Féminine",
+                "notion_season": "2025/26"
             }
         }
 
@@ -125,17 +148,18 @@ class FootballDataSync:
             return None
     
     def fetch_espn_team_schedule(self, team_name, days_back=30, days_forward=60):
-        """Fetch NWSL schedule for a team via the scoreboard endpoint filtered by team.
+        """Fetch schedule for an ESPN-tracked team via the scoreboard endpoint filtered by team.
 
         The team schedule endpoint only returns completed games; the scoreboard
         endpoint returns all games (past, live, upcoming) for a date range.
         """
-        team_config = self.nwsl_teams[team_name]
+        team_config = self.espn_teams[team_name]
         espn_id = str(team_config["espn_id"])
+        league_slug = team_config["league_slug"]
 
         date_from = (datetime.now() - timedelta(days=days_back)).strftime("%Y%m%d")
         date_to = (datetime.now() + timedelta(days=days_forward)).strftime("%Y%m%d")
-        url = f"{self.espn_base_url}/usa.nwsl/scoreboard?dates={date_from}-{date_to}&limit=200"
+        url = f"{self.espn_base_url}/{league_slug}/scoreboard?dates={date_from}-{date_to}&limit=200"
 
         print(f"\n🔍 Fetching ESPN scoreboard for {team_name} ({date_from}–{date_to})...")
         try:
@@ -159,7 +183,7 @@ class FootballDataSync:
 
     def parse_espn_fixture(self, event, team_name):
         """Parse an ESPN event into Notion-friendly format."""
-        team_config = self.nwsl_teams[team_name]
+        team_config = self.espn_teams[team_name]
         espn_id = team_config["espn_id"]
 
         competition = event.get("competitions", [{}])[0]
@@ -239,7 +263,7 @@ class FootballDataSync:
             "opponent": opponent_name,
             "match_date": match_date,
             "league": team_config["league"],
-            "competition": "NWSL",
+            "competition": team_config["competition"],
             "home_away": "Home" if is_home else "Away",
             "result": result,
             "score": score,
@@ -252,8 +276,8 @@ class FootballDataSync:
             "broadcast": broadcast,
         }
 
-    def sync_nwsl_team(self, team_name):
-        """Sync all fixtures for an NWSL team via ESPN."""
+    def sync_espn_team(self, team_name):
+        """Sync all fixtures for an ESPN-tracked team."""
         events = self.fetch_espn_team_schedule(team_name)
         for event in events:
             match_data = self.parse_espn_fixture(event, team_name)
@@ -534,8 +558,8 @@ class FootballDataSync:
             self.sync_team(team_name)
             time.sleep(2)
 
-        for team_name in self.nwsl_teams.keys():
-            self.sync_nwsl_team(team_name)
+        for team_name in self.espn_teams.keys():
+            self.sync_espn_team(team_name)
             time.sleep(2)
 
         print("\n" + "=" * 60)

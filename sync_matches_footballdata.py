@@ -82,7 +82,10 @@ class FootballDataSync:
             },
             "Manchester United Women": {
                 "espn_id": 20061,
-                "league_slugs": {"eng.w.1": "WSL"},
+                "league_slugs": {
+                    "eng.w.1": "WSL",
+                    "uefa.wchampions": "UEFA Women's Champions League",
+                },
                 "league": "WSL",
                 "notion_season": "2025/26"
             },

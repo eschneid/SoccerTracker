@@ -14,6 +14,8 @@ import argparse
 import smtplib
 import sys
 from email.message import EmailMessage
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from dotenv import load_dotenv
 import os
 
@@ -86,6 +88,40 @@ def send_text(message):
         
     except Exception as e:
         print(f"❌ Error sending text: {e}")
+        return False
+
+
+def send_email(subject, body_html, body_text, to_addr=None, bcc_list=None):
+    """Send an HTML email via SMTP."""
+    if not EMAIL_FROM or not EMAIL_PASSWORD:
+        print("❌ Missing EMAIL_FROM or EMAIL_PASSWORD in .env file")
+        return False
+
+    to_addr = to_addr or EMAIL_FROM
+    bcc_list = bcc_list or []
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["From"] = EMAIL_FROM
+        msg["To"] = to_addr
+        msg["Subject"] = subject
+        if bcc_list:
+            msg["Bcc"] = ", ".join(bcc_list)
+
+        msg.attach(MIMEText(body_text, "plain"))
+        msg.attach(MIMEText(body_html, "html"))
+
+        all_recipients = [to_addr] + bcc_list
+
+        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as smtp:
+            smtp.login(EMAIL_FROM, EMAIL_PASSWORD)
+            smtp.sendmail(EMAIL_FROM, all_recipients, msg.as_string())
+
+        print(f"✅ Email sent to {len(all_recipients)} recipient(s)")
+        return True
+
+    except Exception as e:
+        print(f"❌ Error sending email: {e}")
         return False
 
 

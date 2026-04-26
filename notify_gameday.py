@@ -12,11 +12,12 @@ Usage:
 """
 
 import os
+import random
 import argparse
 from datetime import datetime, timedelta
 from notion_client import Client
 from dotenv import load_dotenv
-from send_text import send_text
+from send_text import send_text, send_email
 import pytz
 
 
@@ -159,6 +160,76 @@ class GameDayNotifier:
 
         return message
     
+    def create_email(self, matches):
+        """Build a fun HTML + plain-text game day email summary."""
+        today = datetime.now().strftime("%A, %B %d")
+        n = len(matches)
+
+        openers = [
+            "Your soccer calendar is looking 🔥 today.",
+            "The beautiful game doesn't take days off — and neither do you.",
+            "Clear your afternoon. Soccer is on.",
+            "Boots on. Eyes on the screen. Let's go.",
+            "It's a great day to be a soccer fan.",
+            "The pitch is calling. You should probably answer.",
+        ]
+        closers = [
+            "Enjoy every minute of it. ⚽",
+            "May all your teams win — or at least entertain. ⚽",
+            "Get the snacks ready. It's go time. ⚽",
+            "Here's to goals, glory, and no VAR controversies. ⚽",
+        ]
+        game_word = "match" if n == 1 else "matches"
+        opener = random.choice(openers)
+        closer = random.choice(closers)
+
+        subject = f"⚽ Game Day! {n} {game_word} today — {today}"
+
+        # --- HTML ---
+        match_cards = ""
+        for match in matches:
+            time = self.format_match_time(match['date'])
+            ha_label = f"({'Home' if match['home_away'] == 'Home' else 'Away'})"
+            venue_line = f"<tr><td>📍</td><td>{match['venue']}</td></tr>" if match['venue'] else ""
+            broadcast_line = f"<tr><td>📺</td><td>{match['broadcast']}</td></tr>" if match['broadcast'] else ""
+            league_line = f"<tr><td>🏆</td><td>{match['competition'] or match['league']}</td></tr>" if match['league'] else ""
+            match_cards += f"""
+            <div style="background:#f9f9f9;border-left:4px solid #2e7d32;padding:14px 18px;margin-bottom:16px;border-radius:4px;">
+              <div style="font-size:17px;font-weight:bold;color:#1a1a1a;">{match['team']} vs {match['opponent']} <span style="font-size:13px;color:#666;">{ha_label}</span></div>
+              <table style="margin-top:8px;border-collapse:collapse;font-size:14px;color:#333;">
+                <tr><td style="padding-right:10px;">🕐</td><td>{time}</td></tr>
+                {venue_line}
+                {broadcast_line}
+                {league_line}
+              </table>
+            </div>"""
+
+        body_html = f"""
+        <html><body style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#1a1a1a;">
+          <h2 style="color:#2e7d32;margin-bottom:4px;">⚽ Game Day — {today}</h2>
+          <p style="color:#555;margin-top:0;">{opener}</p>
+          <p style="font-size:15px;"><strong>{n} {game_word} on the schedule:</strong></p>
+          {match_cards}
+          <p style="color:#555;margin-top:24px;">{closer}</p>
+        </body></html>"""
+
+        # --- Plain text fallback ---
+        lines = [f"⚽ GAME DAY — {today}", f"{opener}", "", f"{n} {game_word} today:"]
+        for match in matches:
+            time = self.format_match_time(match['date'])
+            lines.append(f"\n{match['team']} vs {match['opponent']}")
+            lines.append(f"  🕐 {time}")
+            if match['venue']:
+                lines.append(f"  📍 {match['venue']}")
+            if match['broadcast']:
+                lines.append(f"  📺 {match['broadcast']}")
+            if match['league']:
+                lines.append(f"  🏆 {match['competition'] or match['league']}")
+        lines += ["", closer]
+        body_text = "\n".join(lines)
+
+        return subject, body_html, body_text
+
     def send_notifications(self, preview=False):
         """
         Check for today's matches and send notifications.
@@ -183,13 +254,21 @@ class GameDayNotifier:
         for i, match in enumerate(matches, 1):
             print(f"   {i}. {self.format_match_short(match)}")
         
+        subject, body_html, body_text = self.create_email(matches)
+        bcc_list = [addr.strip() for addr in os.getenv("EMAIL_BCC", "").split(",") if addr.strip()]
+
         if preview:
-            print("\n📱 Message Preview:")
+            print("\n📱 SMS Preview:")
             for i, match in enumerate(matches, 1):
                 msg = self.create_match_message(match)
                 print(f"\n--- Message {i} ({len(msg)} chars) ---")
                 print(msg)
-            print("\n⚠️  Preview mode - no SMS sent")
+            print("\n📧 Email Preview:")
+            print(f"Subject: {subject}")
+            print(f"BCC: {', '.join(bcc_list) if bcc_list else '(none)'}")
+            print("-" * 60)
+            print(body_text)
+            print("\n⚠️  Preview mode - nothing sent")
             return
 
         # Send one SMS per match
@@ -200,10 +279,14 @@ class GameDayNotifier:
             if not send_text(msg):
                 all_sent = False
 
+        # Send email summary
+        print("\n📧 Sending email summary...")
+        send_email(subject, body_html, body_text, bcc_list=bcc_list)
+
         if all_sent:
-            print(f"\n✅ {len(matches)} notification(s) sent successfully!")
+            print(f"\n✅ {len(matches)} SMS(s) + email sent successfully!")
         else:
-            print("\n❌ One or more notifications failed to send")
+            print("\n⚠️  Email sent but one or more SMS notifications failed")
     
     def send_test_message(self):
         """Send a test message to verify SMS is working."""

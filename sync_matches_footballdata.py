@@ -72,35 +72,59 @@ class FootballDataSync:
         self.espn_base_url = "https://site.api.espn.com/apis/site/v2/sports/soccer"
 
         # Teams tracked via ESPN (NWSL, WSL, etc.)
+        # league_slugs maps ESPN scoreboard slug → Notion competition name
         self.espn_teams = {
             "Racing Louisville FC": {
                 "espn_id": 20905,
-                "league_slug": "usa.nwsl",
+                "league_slugs": {"usa.nwsl": "NWSL"},
                 "league": "NWSL",
-                "competition": "NWSL",
                 "notion_season": str(datetime.now().year)
             },
             "Manchester United Women": {
                 "espn_id": 20061,
-                "league_slug": "eng.w.1",
+                "league_slugs": {
+                    "eng.w.1": "WSL",
+                    "uefa.wchampions": "UEFA Women's Champions League",
+                },
                 "league": "WSL",
-                "competition": "WSL",
                 "notion_season": "2025/26"
             },
             "Manchester City Women": {
                 "espn_id": 19257,
-                "league_slug": "eng.w.1",
+                "league_slugs": {"eng.w.1": "WSL"},
                 "league": "WSL",
-                "competition": "WSL",
                 "notion_season": "2025/26"
             },
             "Lyon Women": {
                 "espn_id": 19256,
-                "league_slug": "fra.w.1",
+                "league_slugs": {
+                    "fra.w.1": "Division 1 Féminine",
+                    "uefa.wchampions": "UEFA Women's Champions League",
+                },
                 "league": "Division 1 Féminine",
-                "competition": "Division 1 Féminine",
                 "notion_season": "2025/26"
-            }
+            },
+            "USA Women": {
+                "espn_id": 2765,
+                "league_slugs": {
+                    "fifa.friendly.w": "Women's International Friendly",
+                    "fifa.shebelieves": "SheBelieves Cup",
+                    "concacaf.womens.championship": "CONCACAF W Championship",
+                },
+                "league": "International",
+                "notion_season": "2026",
+                "days_forward": 365,
+            },
+            "USA Men": {
+                "espn_id": 660,
+                "league_slugs": {
+                    "fifa.world": "FIFA World Cup",
+                    "fifa.friendly": "International Friendly",
+                },
+                "league": "International",
+                "notion_season": "2026",
+                "days_forward": 365,
+            },
         }
 
         # Competition mapping
@@ -148,38 +172,42 @@ class FootballDataSync:
             return None
     
     def fetch_espn_team_schedule(self, team_name, days_back=30, days_forward=60):
-        """Fetch schedule for an ESPN-tracked team via the scoreboard endpoint filtered by team.
+        """Fetch schedule for an ESPN-tracked team across all configured competitions.
 
         The team schedule endpoint only returns completed games; the scoreboard
         endpoint returns all games (past, live, upcoming) for a date range.
+        Queries each league_slug separately and deduplicates by event ID.
         """
         team_config = self.espn_teams[team_name]
         espn_id = str(team_config["espn_id"])
-        league_slug = team_config["league_slug"]
 
         date_from = (datetime.now() - timedelta(days=days_back)).strftime("%Y%m%d")
         date_to = (datetime.now() + timedelta(days=days_forward)).strftime("%Y%m%d")
-        url = f"{self.espn_base_url}/{league_slug}/scoreboard?dates={date_from}-{date_to}&limit=200"
 
         print(f"\n🔍 Fetching ESPN scoreboard for {team_name} ({date_from}–{date_to})...")
-        try:
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-            all_events = data.get("events", [])
 
-            # Filter to only events involving this team
-            team_events = []
-            for event in all_events:
-                competitors = event.get("competitions", [{}])[0].get("competitors", [])
-                if any(str(c.get("id")) == espn_id for c in competitors):
-                    team_events.append(event)
+        all_team_events = []
+        seen_ids = set()
 
-            print(f"   ✅ Found {len(team_events)} fixtures")
-            return team_events
-        except Exception as e:
-            print(f"   ❌ ESPN request error: {e}")
-            return []
+        for league_slug, competition_name in team_config["league_slugs"].items():
+            url = f"{self.espn_base_url}/{league_slug}/scoreboard?dates={date_from}-{date_to}&limit=200"
+            try:
+                response = requests.get(url, timeout=10)
+                response.raise_for_status()
+                data = response.json()
+                for event in data.get("events", []):
+                    competitors = event.get("competitions", [{}])[0].get("competitors", [])
+                    if any(str(c.get("id")) == espn_id for c in competitors):
+                        event_id = event.get("id")
+                        if event_id not in seen_ids:
+                            seen_ids.add(event_id)
+                            event["_competition_name"] = competition_name
+                            all_team_events.append(event)
+            except Exception as e:
+                print(f"   ❌ ESPN request error ({league_slug}): {e}")
+
+        print(f"   ✅ Found {len(all_team_events)} fixtures")
+        return all_team_events
 
     def parse_espn_fixture(self, event, team_name):
         """Parse an ESPN event into Notion-friendly format."""
@@ -263,7 +291,7 @@ class FootballDataSync:
             "opponent": opponent_name,
             "match_date": match_date,
             "league": team_config["league"],
-            "competition": team_config["competition"],
+            "competition": event.get("_competition_name", team_config["league"]),
             "home_away": "Home" if is_home else "Away",
             "result": result,
             "score": score,
@@ -278,7 +306,10 @@ class FootballDataSync:
 
     def sync_espn_team(self, team_name):
         """Sync all fixtures for an ESPN-tracked team."""
-        events = self.fetch_espn_team_schedule(team_name)
+        team_config = self.espn_teams[team_name]
+        days_back = team_config.get("days_back", 30)
+        days_forward = team_config.get("days_forward", 60)
+        events = self.fetch_espn_team_schedule(team_name, days_back=days_back, days_forward=days_forward)
         for event in events:
             match_data = self.parse_espn_fixture(event, team_name)
             existing_page = self.find_existing_match(match_data["match_id"])

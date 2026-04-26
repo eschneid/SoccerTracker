@@ -103,7 +103,28 @@ class FootballDataSync:
                 },
                 "league": "Division 1 Féminine",
                 "notion_season": "2025/26"
-            }
+            },
+            "USA Women": {
+                "espn_id": 2765,
+                "league_slugs": {
+                    "fifa.friendly.w": "Women's International Friendly",
+                    "fifa.shebelieves": "SheBelieves Cup",
+                    "concacaf.womens.championship": "CONCACAF W Championship",
+                },
+                "league": "International",
+                "notion_season": "2026",
+                "days_forward": 365,
+            },
+            "USA Men": {
+                "espn_id": 660,
+                "league_slugs": {
+                    "fifa.world": "FIFA World Cup",
+                    "fifa.friendly": "International Friendly",
+                },
+                "league": "International",
+                "notion_season": "2026",
+                "days_forward": 365,
+            },
         }
 
         # Competition mapping
@@ -285,7 +306,10 @@ class FootballDataSync:
 
     def sync_espn_team(self, team_name):
         """Sync all fixtures for an ESPN-tracked team."""
-        events = self.fetch_espn_team_schedule(team_name)
+        team_config = self.espn_teams[team_name]
+        days_back = team_config.get("days_back", 30)
+        days_forward = team_config.get("days_forward", 60)
+        events = self.fetch_espn_team_schedule(team_name, days_back=days_back, days_forward=days_forward)
         for event in events:
             match_data = self.parse_espn_fixture(event, team_name)
             existing_page = self.find_existing_match(match_data["match_id"])

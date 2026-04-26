@@ -37,8 +37,10 @@ jobs:
           SMTP_PORT=${{ secrets.SMTP_PORT }}
           EMAIL_FROM=${{ secrets.EMAIL_FROM }}
           EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_BCC=${{ secrets.EMAIL_BCC }}
           SMS_RECIPIENTS=${{ secrets.SMS_RECIPIENTS }}
           SMS_SEND_MODE=${{ secrets.SMS_SEND_MODE }}
+          FOOTBALLDATA_API_KEY=${{ secrets.FOOTBALLDATA_API_KEY }}
           MY_FAVORITE_TEAM=${{ secrets.MY_FAVORITE_TEAM }}
           WIFE_FAVORITE_TEAM=${{ secrets.WIFE_FAVORITE_TEAM }}
           EOF

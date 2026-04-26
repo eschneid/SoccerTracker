@@ -143,46 +143,21 @@ class GameDayNotifier:
         time = self.format_match_time(match['date'])
         return f"{match['team']} vs {match['opponent']} at {time}"
     
-    def create_message(self, matches):
-        """
-        Create SMS message for today's matches.
-        
-        Args:
-            matches: List of match dictionaries
-            
-        Returns:
-            str: Formatted message
-        """
-        if not matches:
-            return None
-        
-        message = "⚽ GAME DAY! ⚽\n\n"
-        
-        for match in matches:
-            time = self.format_match_time(match['date'])
-            message += f"{match['team']} vs {match['opponent']}\n"
-            message += f"🕐 {time}"
-            
-            if match['venue']:
-                message += f" • 📍 {match['venue']}"
+    def create_match_message(self, match):
+        """Create SMS message for a single match."""
+        time = self.format_match_time(match['date'])
+        message = f"⚽ GAME DAY!\n{match['team']} vs {match['opponent']}\n🕐 {time}"
 
-            if match['broadcast']:
-                message += f"\n📺 {match['broadcast']}"
+        if match['venue']:
+            message += f"\n📍 {match['venue']}"
 
-            if match['league']:
-                message += f"\n🏆 {match['league']}"
+        if match['broadcast']:
+            message += f"\n📺 {match['broadcast']}"
 
-            message += "\n\n"
-        
-        # Keep under 160 characters if possible, otherwise up to 300
-        if len(message) > 300:
-            # Truncate and simplify
-            message = "⚽ GAME DAY! ⚽\n\n"
-            for match in matches:
-                time = self.format_match_time(match['date'])
-                message += f"{match['team']} vs {match['opponent']} {time}\n"
-        
-        return message.strip()
+        if match['league']:
+            message += f"\n🏆 {match['league']}"
+
+        return message
     
     def send_notifications(self, preview=False):
         """
@@ -208,26 +183,27 @@ class GameDayNotifier:
         for i, match in enumerate(matches, 1):
             print(f"   {i}. {self.format_match_short(match)}")
         
-        # Create message
-        message = self.create_message(matches)
-        
         if preview:
             print("\n📱 Message Preview:")
-            print("-" * 60)
-            print(message)
-            print("-" * 60)
-            print(f"Length: {len(message)} characters")
+            for i, match in enumerate(matches, 1):
+                msg = self.create_match_message(match)
+                print(f"\n--- Message {i} ({len(msg)} chars) ---")
+                print(msg)
             print("\n⚠️  Preview mode - no SMS sent")
             return
-        
-        # Send SMS
+
+        # Send one SMS per match
         print("\n📱 Sending SMS notifications...")
-        success = send_text(message)
-        
-        if success:
-            print("\n✅ Notifications sent successfully!")
+        all_sent = True
+        for match in matches:
+            msg = self.create_match_message(match)
+            if not send_text(msg):
+                all_sent = False
+
+        if all_sent:
+            print(f"\n✅ {len(matches)} notification(s) sent successfully!")
         else:
-            print("\n❌ Failed to send notifications")
+            print("\n❌ One or more notifications failed to send")
     
     def send_test_message(self):
         """Send a test message to verify SMS is working."""

@@ -2,8 +2,8 @@ name: Sync Match Data
 
 on:
   schedule:
-    # Daily sync at 7 AM EDT (11 AM UTC)
-    - cron: '0 11 * * *'
+    # Daily sync at 6 AM EDT (10 AM UTC) — runs 1 hour before notifications
+    - cron: '0 10 * * *'
   
   # Allow manual trigger
   workflow_dispatch:
